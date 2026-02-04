@@ -1,0 +1,218 @@
+using UnityEngine;
+using UnityEngine.UI;
+
+/*
+ *  Manages Pannel
+ *    - drawing things to the screen.
+ *    - alarm animations.
+ */
+public class Panel : MonoBehaviour
+{
+    public GameObject screen;
+    public GameObject SecondScreen;
+    public Text predictionText1,predictionText2, probabilityText;
+    public MNISTEngine mnist;
+    public GameObject alarm1;
+    public GameObject alarm2;
+    public Light mainLight;
+    public System.Action<Room, int, float> callback;
+
+
+    // code pad where the digit is drawn onto
+    Texture2D drawableTexture;
+    const int imageWidth = 28; //width and height of input image
+    float[] imageData = new float[imageWidth * imageWidth];
+    byte[] zeroes = new byte[imageWidth * imageWidth * 3]; // blank screen
+    Vector3 lastCoord; // last position of mouse on screen
+
+    // digit recognition
+    int predictedNumber;
+    float probability;
+
+    float timeOfLastEntry = float.MaxValue;
+    float clearTime = 0.5f; // time digit is on screen before it is cleared
+    Camera lookCamera;
+
+    // alarm state
+    enum STATE { NORMAL, ALARM };
+    STATE state = STATE.NORMAL;
+    float startTimeOfState = 0;
+    float alarmPeriod = 2f; // number of seconds for alarm
+    Color originalLightColor;
+
+    // room state
+    Room room;
+
+
+    void Start()
+    {
+        lookCamera = Camera.main;
+
+        // code pad texture which will be drawn into:
+        drawableTexture = new Texture2D(imageWidth, imageWidth, TextureFormat.RGB24, false);
+        drawableTexture.wrapMode = TextureWrapMode.Clamp;
+        drawableTexture.filterMode = FilterMode.Point;
+
+        ClearTexture();
+
+        // emission map for glowing digits
+        screen.GetComponent<Renderer>().material.SetTexture("_EmissionMap", drawableTexture);
+
+        if (SecondScreen != null) SecondScreen.GetComponent<Renderer>().material.SetTexture("_EmissionMap", drawableTexture);
+        room = GetComponent<Room>();
+        originalLightColor = mainLight.color;
+
+        predictionText1.text = "?";
+        if( predictionText2 != null ) predictionText2.text = "?";
+    }
+
+    public void SoundAlarm()
+    {
+        state = STATE.ALARM;
+        alarm1.GetComponent<AudioSource>().Play();
+        if(alarm2 != null) alarm2.GetComponent<AudioSource>().Play();
+        startTimeOfState = Time.time;
+    }
+
+    void ClearTexture()
+    {
+        drawableTexture.LoadRawTextureData(zeroes);
+        drawableTexture.Apply();
+    }
+
+    // Calls the neural network to get the probabilities of different digits then selects the most likely
+    void Infer()
+    {
+        var probabilityAndIndex = mnist.GetMostLikelyDigitProbability(drawableTexture);
+
+        probability = probabilityAndIndex.Item1;
+        predictedNumber = probabilityAndIndex.Item2;
+        predictionText1.text = predictedNumber.ToString();
+        if( predictionText2 != null ) predictionText2.text = predictedNumber.ToString();
+        if (probabilityText) probabilityText.text = Mathf.Floor(probability * 100) + "%";
+    }
+
+    // Draws a line on the panel by simply drawing a sequence of pixels
+    void DrawLine(Vector3 startp, Vector3 endp)
+    {
+        int steps = (int)((endp - startp).magnitude * 2 + 1); 
+        for(float a = 0; a <= steps; a++)
+        {
+            float t = a * 1f / steps;
+            DrawPoint(startp * (1 - t) + endp * t , 2, Color.white);
+        }
+    }
+
+    // Draws either a single pixel or a 2x2 pixel for a thicker line
+    void DrawPoint(Vector3 coord, int thickness, Color color)
+    {
+        //clamp the values so it doesn't touch the border
+        float x = Mathf.Clamp(coord.x, thickness, imageWidth - thickness);
+        float y = Mathf.Clamp(coord.y, thickness, imageWidth - thickness);
+
+        switch (thickness)
+        {
+            case 1:
+                DrawPixel((int)x, (int)y, color);
+                break;
+            case 2:
+            default:
+                int x0 = Mathf.Max(0, (int)(x - 0.5f));
+                int x1 = Mathf.Min(imageWidth - 1, (int)(x + 0.5f));
+                int y0 = Mathf.Max(0, (int)(y - 0.5f));
+                int y1 = Mathf.Min(imageWidth - 1, (int)(y + 0.5f));
+                DrawPixel(x0, y0, color);
+                DrawPixel(x1, y0, color);
+                DrawPixel(x0, y1, color);
+                DrawPixel(x1, y1, color);
+                break;
+        }
+    }
+
+    void DrawPixel(int x,int y,Color color)
+    {
+        drawableTexture.SetPixel(x, y, color);
+    }
+
+    public void ScreenMouseDown(RaycastHit hit)
+    {
+        if (Game.instance && Game.instance.mode != Game.MODE.CONTROL) return;
+        Vector2 uv = hit.textureCoord;
+        Vector3 coords = uv * imageWidth;
+        lastCoord = coords;
+        timeOfLastEntry = Time.time;
+    }
+
+    public void ScreenGetMouse(RaycastHit hit)
+    {
+        if (Game.instance &&  Game.instance.mode != Game.MODE.CONTROL) return;
+        Vector2 uv = hit.textureCoord;
+        Vector3 coords = uv * imageWidth;
+
+        DrawLine(lastCoord, coords);
+        lastCoord = coords;
+        drawableTexture.Apply();
+
+        timeOfLastEntry = Time.time;
+        // Run the inference every frame since it is very fast
+        Infer();
+    }
+
+    void Update()
+    {
+        if (state == STATE.ALARM)
+        {
+            float t = Time.time - startTimeOfState;
+            if (t < alarmPeriod)
+            {
+                AnimateAlarm(t);
+            }
+            else
+            {
+                StopAlarm();
+            }
+        }
+
+        // After a certain time we want to clear the panel:
+        if ((Time.time - timeOfLastEntry) > clearTime)
+        {
+            if (callback != null) callback(room, predictedNumber, probability);
+            ClearTexture();
+            timeOfLastEntry = float.MaxValue;
+        }
+
+    }
+
+    void AnimateAlarm(float t)
+    {
+        Color lightColor = new Color(Mathf.Pow(Mathf.Cos(t * Mathf.PI * 4), 2), 0, 0);
+        print(room.lights.Length);
+        for (int i = 0; i < room.lights.Length; i++)
+        {
+            room.lights[i].GetComponent<Renderer>().material.SetColor("_EmissionColor", lightColor);
+        }
+        mainLight.color = lightColor;
+        
+    }
+
+    void StopAlarm()
+    {
+        alarm1.GetComponent<AudioSource>().Stop();
+        if(alarm2!= null)alarm2.GetComponent<AudioSource>().Stop();
+        state = STATE.NORMAL;
+        mainLight.color = originalLightColor;
+        
+        Color color = Color.black;
+        if (room.isBinaryDoor)
+        {
+            color = room.doorState == Room.DOOR_STATE.OPEN ? Color.green : Color.red;
+        }
+        
+        for (int i = 0; i < room.lights.Length; i++)
+        {
+            room.lights[i].GetComponent<Renderer>().material.SetColor("_EmissionColor", color);
+        }
+        predictionText1.text = "?";
+        if( predictionText2 != null )  predictionText2.text = "?";
+    }
+}
