@@ -10,6 +10,9 @@ using UnityEngine.UI;
  */
 public class Game : MonoBehaviour
 {
+    [SerializeField]
+    public Transform cameraTransform; // Glissez votre Main Camera ici dans l'inspecteur
+    private float xRotation = 0f;
     public GameObject player;
     public Room[] rooms;
     public AudioClip[] numbers;
@@ -122,6 +125,7 @@ public class Game : MonoBehaviour
         float vert = Input.GetAxis("Vertical");
         float horiz = Input.GetAxis("Horizontal");
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
+        float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
 
         if (Input.GetKeyDown(KeyCode.C) && Input.GetKey(KeyCode.LeftControl)) // cheat mode open all doors! Control+C
         {
@@ -138,7 +142,21 @@ public class Game : MonoBehaviour
    
         if (mode == MODE.WALK)
         {
-            controller.transform.Rotate(Vector3.up, mouseX);
+            // 1. Rotation Horizontale (Le corps tourne à gauche/droite)
+            controller.transform.Rotate(Vector3.up, mouseX); 
+
+            // 2. Rotation Verticale (La caméra tourne en haut/bas)
+            xRotation -= mouseY; // On soustrait pour que la souris vers le haut lève la tête (sinon c'est inversé)
+        
+            // On limite la rotation pour ne pas regarder derrière soi par le haut (Clamp entre -90 et 90 degrés)
+            xRotation = Mathf.Clamp(xRotation, -90f, 90f);
+
+            // On applique la rotation locale UNIQUEMENT à la caméra
+            // Si cameraTransform est null, assurez-vous de l'assigner dans l'inspecteur !
+            if(cameraTransform != null) 
+            {
+                cameraTransform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+            }
         }
 
         // This toggles between using the mouse to look and using the mouse to draw on the screen
