@@ -142,17 +142,9 @@ public class Game : MonoBehaviour
    
         if (mode == MODE.WALK)
         {
-            // 1. Rotation Horizontale (Le corps tourne à gauche/droite)
             controller.transform.Rotate(Vector3.up, mouseX); 
-
-            // 2. Rotation Verticale (La caméra tourne en haut/bas)
-            xRotation -= mouseY; // On soustrait pour que la souris vers le haut lève la tête (sinon c'est inversé)
-        
-            // On limite la rotation pour ne pas regarder derrière soi par le haut (Clamp entre -90 et 90 degrés)
+            xRotation -= mouseY; 
             xRotation = Mathf.Clamp(xRotation, -90f, 90f);
-
-            // On applique la rotation locale UNIQUEMENT à la caméra
-            // Si cameraTransform est null, assurez-vous de l'assigner dans l'inspecteur !
             if(cameraTransform != null) 
             {
                 cameraTransform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
