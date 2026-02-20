@@ -4,6 +4,7 @@ public class AttackState : IState
 {
     GuardAI ai;
     float nextAttackTime;
+    public bool Attacked;
 
     public AttackState(GuardAI ai)
     {
@@ -39,6 +40,11 @@ public class AttackState : IState
         {
             nextAttackTime = Time.time + ai.attackCooldown;
             ai.PerformAttack();
+        }
+
+        if(Attacked)
+        {
+            ai.sm.ChangeState(new FallBackState(ai));
         }
     }
 
