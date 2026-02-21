@@ -18,6 +18,8 @@ public class PatrolState : IState
 
         waypointIndex = 0;
 
+        ai.SetRunning(false);
+
         if (ai.waypoints == null || ai.waypoints.Length == 0)
         {
             Debug.LogWarning("PatrolState: no waypoints");

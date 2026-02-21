@@ -16,6 +16,8 @@ public class ChaseState : IState
         ai.agent.isStopped = false;
 
         nextUpdateTime = 0f;
+        
+        ai.SetRunning(true);
 
         if (ai.player != null)
         {
