@@ -23,6 +23,10 @@ public class GuardAI : MonoBehaviour
     public float attackRange = 2f;
     public float hysteresis = 0.5f;
     public float attackCooldown = 0.8f;
+    
+    [Header("Recover")]
+    public float smallDistance = 0.5f;
+    public float duration = 0.2f;
 
     // Mémoire
     public float lastSeenTime;
@@ -96,5 +100,52 @@ public class GuardAI : MonoBehaviour
     {
         Debug.Log("ATTACK!");
         // plus tard : dégâts / projectile / animation events
+    }
+    
+    public void FallBack()
+    {
+        StopCoroutine("FallBackCoroutine");
+        StartCoroutine(FallBackCoroutine());
+    }
+    
+    System.Collections.IEnumerator FallBackCoroutine()
+    {
+        // petite reculade configurable ici
+
+
+        Vector3 start = transform.position;
+        Vector3 target = start - transform.forward.normalized * smallDistance;
+
+        float elapsed = 0f;
+        Vector3 previous = start;
+
+        while (elapsed < duration)
+        {
+            float t = elapsed / duration;
+            // ease-out pour une sensation plus douce
+            float eased = 1f - Mathf.Pow(1f - t, 2f);
+
+            Vector3 next = Vector3.Lerp(start, target, eased);
+            Vector3 delta = next - previous;
+
+            if (agent != null && agent.isOnNavMesh)
+                agent.Move(delta);
+            else
+                transform.Translate(delta, Space.World);
+
+            previous = next;
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        // garantir la position finale exacte
+        Vector3 finalDelta = target - previous;
+        if (finalDelta.sqrMagnitude > 0.0001f)
+        {
+            if (agent != null && agent.isOnNavMesh)
+                agent.Move(finalDelta);
+            else
+                transform.Translate(finalDelta, Space.World);
+        }
     }
 }
