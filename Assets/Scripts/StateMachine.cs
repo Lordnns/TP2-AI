@@ -20,6 +20,7 @@ public class StateMachine
 
         // Passer au nouvel état
         CurrentState = nextState;
+        Debug.unityLogger.Log("ChangeState to : " + nextState);
 
         // Entrer dans le nouvel état
         CurrentState.Enter();

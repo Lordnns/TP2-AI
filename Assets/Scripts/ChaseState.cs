@@ -12,7 +12,7 @@ public class ChaseState : IState
 
     public void Enter()
     {
-        ai.SetAttack(false);
+        //ai.SetAttack(false);
         ai.agent.isStopped = false;
 
         nextUpdateTime = 0f;
@@ -25,32 +25,19 @@ public class ChaseState : IState
 
     public void Tick()
     {
-        // Transition Chase -> Attack
         if (ai.InAttackRange())
         {
             ai.sm.ChangeState(new AttackState(ai));
             return;
         }
 
-        // Si détecté : refresh last seen
-        if (ai.CanDetectPlayer())
+        if (!ai.CanDetectPlayer())
         {
-            ai.UpdateLastSeen();
-        }
-
-        // Aller vers last seen (pas à chaque frame)
-        if (Time.time >= nextUpdateTime)
-        {
-            nextUpdateTime = Time.time + ai.updateDestinationRate;
-            ai.agent.SetDestination(ai.lastSeenPosition);
-        }
-
-        // Transition Chase -> Patrol si perdu trop longtemps
-        if (Time.time - ai.lastSeenTime > ai.lostTime)
-        {
-            ai.sm.ChangeState(new PatrolState(ai));
+            ai.sm.ChangeState(new InvestigateState(ai));
             return;
         }
+        
+        ai.UpdateLastSeen();
     }
 
     public void Exit()

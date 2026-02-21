@@ -13,7 +13,7 @@ public class PatrolState : IState
 
     public void Enter()
     {
-        ai.SetAttack(false);
+        //ai.SetAttack(false);
         ai.agent.isStopped = false;
 
         waypointIndex = 0;

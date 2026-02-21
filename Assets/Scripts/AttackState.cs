@@ -3,8 +3,8 @@ using UnityEngine;
 public class AttackState : IState
 {
     GuardAI ai;
-    float nextAttackTime;
-    public bool Attacked;
+    float stateEndTime;
+    float animationDuration = 3.0f;
 
     public AttackState(GuardAI ai)
     {
@@ -14,36 +14,22 @@ public class AttackState : IState
     public void Enter()
     {
         ai.agent.isStopped = true;
-        ai.SetAttack(true);
-
-        nextAttackTime = Time.time;
+        ai.SetAttack(true); 
+        ai.PerformAttack(); 
+        stateEndTime = Time.time + animationDuration;
     }
 
     public void Tick()
     {
-        // Update mémoire si proche
         if (ai.CanDetectPlayer())
         {
             ai.UpdateLastSeen();
         }
 
-        // Sortie stable Attack -> Chase (hystérésis)
-        float d = ai.DistanceToPlayer();
-        if (d > ai.attackRange + ai.hysteresis)
+        // 5. Wait for the animation to end
+        if (Time.time >= stateEndTime)
         {
-            ai.sm.ChangeState(new ChaseState(ai));
-            return;
-        }
-
-        // Cooldown d'attaque
-        if (Time.time >= nextAttackTime)
-        {
-            nextAttackTime = Time.time + ai.attackCooldown;
-            ai.PerformAttack();
-        }
-
-        if(Attacked)
-        {
+            // Transition to FallBack/Recover as required by the TP [cite: 37, 55, 60]
             ai.sm.ChangeState(new FallBackState(ai));
         }
     }
@@ -51,6 +37,5 @@ public class AttackState : IState
     public void Exit()
     {
         ai.SetAttack(false);
-        ai.agent.isStopped = false;
     }
 }

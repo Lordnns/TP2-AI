@@ -3,7 +3,7 @@ using UnityEngine;
 public class FallBackState : IState
 {
     GuardAI ai;
-    private bool fallback = false;
+    float cooldownEndTime;
     
     public FallBackState(GuardAI ai)
     {
@@ -11,21 +11,34 @@ public class FallBackState : IState
     }
     public void Enter()
     {
-        ai.SetAttack(false);
-        ai.agent.isStopped = false;
-        fallback = true;
+        ai.FallBack();
+        cooldownEndTime = Time.time + ai.attackCooldown;
         Debug.Log("Fallback");
     }
 
     public void Tick()
     {
-        if(fallback)
-            ai.FallBack();
+        if (Time.time < cooldownEndTime) return;
+
+        // Cooldown is over, decide next state
+        if (ai.CanDetectPlayer())
+        {
+            // If still close, loop back to Attack; otherwise, Chase
+            if (ai.InAttackRange())
+                ai.sm.ChangeState(new AttackState(ai));
+            else
+                ai.sm.ChangeState(new ChaseState(ai));
+        }
+        else
+        {
+            // Player was lost during attack or fallback; go to Investigate last seen position
+            ai.sm.ChangeState(new InvestigateState(ai));
+        }
     }
 
     public void Exit()
     {
-        fallback = false;
+        ai.agent.isStopped = false;
         Debug.Log("Fallback over");
     }
 }
