@@ -4,7 +4,7 @@ public class AttackState : IState
 {
     GuardAI ai;
     float stateEndTime;
-    float animationDuration = 3.0f;
+    float animationDuration = 0.16f;
 
     public AttackState(GuardAI ai)
     {
