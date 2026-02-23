@@ -16,14 +16,20 @@ public class InvestigateState : IState
 
     public void Tick()
     {
-        if (ai.CanDetectPlayer()) { ai.sm.ChangeState(new ChaseState(ai)); return; }
+        if (ai.CanDetectPlayer())
+        {
+            ai.sm.ChangeState(new ChaseState(ai));
+            return;
+        }
 
         // If reached spot, wait before going back to Patrol
-        if (!ai.agent.pathPending && ai.agent.remainingDistance <= ai.waypointReachedDistance)
+
+        timer += Time.deltaTime;
+        if (timer >= ai.lostTime)
         {
-            timer += Time.deltaTime;
-            if (timer >= ai.lostTime) ai.sm.ChangeState(new PatrolState(ai));
+            ai.sm.ChangeState(new PatrolState(ai));
         }
+
     }
 
     public void Exit() { }
